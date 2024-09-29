@@ -2,7 +2,8 @@ use tokio::task::JoinHandle;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use crate::bot::error::BotResult;
+use crate::bot::error::{BotResult, BotError};
+use std::future::Future;
 
 pub struct TaskManager {
     tasks: Arc<Mutex<HashMap<String, JoinHandle<()>>>>,
@@ -43,5 +44,27 @@ impl TaskManager {
         for (_, handle) in tasks.drain() {
             handle.abort();
         }
+    }
+
+    pub async fn is_running(&self, name: &str) -> bool {
+        let tasks = self.tasks.lock().await;
+        tasks.contains_key(name)
+    }
+
+    pub async fn get_running_tasks(&self) -> Vec<String> {
+        let tasks = self.tasks.lock().await;
+        tasks.keys().cloned().collect()
+    }
+}
+
+impl Drop for TaskManager {
+    fn drop(&mut self) {
+        let tasks = self.tasks.clone();
+        tokio::spawn(async move {
+            let mut tasks = tasks.lock().await;
+            for (_, handle) in tasks.drain() {
+                handle.abort();
+            }
+        });
     }
 }
