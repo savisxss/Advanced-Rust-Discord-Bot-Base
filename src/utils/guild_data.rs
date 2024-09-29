@@ -36,4 +36,22 @@ impl GuildData {
         }
         Ok(())
     }
+
+    pub async fn get_all(&self, guild_id: GuildId) -> BotResult<Option<HashMap<String, String>>> {
+        let data = self.data.read().await;
+        Ok(data.get(&guild_id).cloned())
+    }
+
+    pub async fn clear(&self, guild_id: GuildId) -> BotResult<()> {
+        let mut data = self.data.write().await;
+        data.remove(&guild_id);
+        Ok(())
+    }
+
+    pub async fn has_key(&self, guild_id: GuildId, key: &str) -> BotResult<bool> {
+        let data = self.data.read().await;
+        Ok(data.get(&guild_id)
+            .map(|guild_data| guild_data.contains_key(key))
+            .unwrap_or(false))
+    }
 }
