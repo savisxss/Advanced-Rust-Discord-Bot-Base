@@ -1,8 +1,11 @@
 use log::{Level, LevelFilter, Metadata, Record};
 use chrono::Local;
 use colored::*;
+use std::sync::Once;
 
 pub struct Logger;
+
+static INIT: Once = Once::new();
 
 impl log::Log for Logger {
     fn enabled(&self, metadata: &Metadata) -> bool {
@@ -20,7 +23,7 @@ impl log::Log for Logger {
                 Level::Debug => level.blue(),
                 Level::Trace => level.purple(),
             };
-            println!("[{}] {} - {}", now, colored_level, record.args());
+            println!("[{}] {} - {} - {}", now, colored_level, record.target(), record.args());
         }
     }
 
@@ -28,6 +31,47 @@ impl log::Log for Logger {
 }
 
 pub fn init() {
-    log::set_logger(&Logger).unwrap();
-    log::set_max_level(LevelFilter::Info);
+    INIT.call_once(|| {
+        log::set_logger(&Logger).unwrap();
+        log::set_max_level(LevelFilter::Info);
+    });
+}
+
+pub fn set_log_level(level: LevelFilter) {
+    log::set_max_level(level);
+}
+
+#[macro_export]
+macro_rules! log_error {
+    ($($arg:tt)+) => {
+        log::error!($($arg)+);
+    }
+}
+
+#[macro_export]
+macro_rules! log_warn {
+    ($($arg:tt)+) => {
+        log::warn!($($arg)+);
+    }
+}
+
+#[macro_export]
+macro_rules! log_info {
+    ($($arg:tt)+) => {
+        log::info!($($arg)+);
+    }
+}
+
+#[macro_export]
+macro_rules! log_debug {
+    ($($arg:tt)+) => {
+        log::debug!($($arg)+);
+    }
+}
+
+#[macro_export]
+macro_rules! log_trace {
+    ($($arg:tt)+) => {
+        log::trace!($($arg)+);
+    }
 }
