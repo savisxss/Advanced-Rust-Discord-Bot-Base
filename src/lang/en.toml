@@ -1,0 +1,17 @@
+[common]
+error = "An error occurred: {error}"
+success = "Operation completed successfully!"
+
+[commands]
+ping_response = "Pong! Latency is {latency}ms."
+help_title = "Available Commands"
+help_description = "Here's a list of available commands:"
+
+[events]
+member_join = "Welcome to the server, {user}!"
+member_leave = "Goodbye, {user}. We hope to see you again soon!"
+
+[errors]
+unknown_command = "Unknown command: {command}"
+missing_permissions = "You don't have permission to use this command."
+database_error = "A database error occurred. Please try again later."
