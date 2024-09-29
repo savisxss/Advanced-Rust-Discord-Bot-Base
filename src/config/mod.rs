@@ -14,7 +14,6 @@ pub struct Config {
 #[derive(Debug, Deserialize, Clone)]
 pub struct BotConfig {
     pub name: String,
-    pub prefix: String,
     pub owners: Vec<u64>,
     pub default_language: String,
 }
@@ -55,9 +54,6 @@ impl Config {
     fn validate(&self) -> BotResult<()> {
         if self.bot.name.is_empty() {
             return Err(BotError::Config("Bot name cannot be empty".to_string()));
-        }
-        if self.bot.prefix.is_empty() {
-            return Err(BotError::Config("Bot prefix cannot be empty".to_string()));
         }
         if self.discord.token.is_empty() {
             return Err(BotError::Config("Discord token cannot be empty".to_string()));
