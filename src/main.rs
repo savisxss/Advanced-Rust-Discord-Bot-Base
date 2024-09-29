@@ -36,6 +36,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await
         .expect("Err creating client");
 
+    client.cache_and_http.set_activity(Activity::listening(&config.bot.status));
+
     {
         let mut data = client.data.write().await;
         data.insert::<Config>(Arc::new(config));
