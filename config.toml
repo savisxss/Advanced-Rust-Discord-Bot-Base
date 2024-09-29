@@ -1,22 +1,15 @@
 [bot]
-status = "Listening to /help"
-
-[guild]
-id = 123456789012345678
+name = "Your Bot Name"
+owners = [123456789, 987654321]
+default_language = "en"
 
 [database]
-url = "postgresql://username:password@localhost/botdb"
+max_connections = 5
 
-[channels]
-welcome = 123456789012345678
-general = 234567890123456789
-logs = 345678901234567890
+[discord]
+application_id = 123456789012345678
 
-[roles]
-admin = 456789012345678901
-moderator = 567890123456789012
-member = 678901234567890123
-
-[messages]
-welcome = "Welcome to the server, {user}! Enjoy your stay."
-goodbye = "Goodbye, {user}. We hope to see you again soon!"
+[features]
+enable_music = false
+enable_moderation = true
+enable_custom_commands = false
