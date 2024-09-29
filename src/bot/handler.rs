@@ -32,4 +32,24 @@ impl EventHandler for Handler {
             log::error!("Error handling ready event: {:?}", why);
         }
     }
+
+    async fn guild_member_addition(&self, ctx: Context, new_member: Member) {
+        let config = &self.bot.config;
+        let welcome_channel_id = ChannelId(config.channels.welcome);
+        let welcome_message = config.messages.welcome.replace("{user}", &new_member.user.name);
+
+        if let Err(why) = welcome_channel_id.say(&ctx.http, welcome_message).await {
+            println!("Error sending welcome message: {:?}", why);
+        }
+    }
+
+    async fn guild_member_removal(&self, ctx: Context, guild_id: GuildId, user: User, _member_data: Option<Member>) {
+        let config = &self.bot.config;
+        let goodbye_channel_id = ChannelId(config.channels.general);
+        let goodbye_message = config.messages.goodbye.replace("{user}", &user.name);
+
+        if let Err(why) = goodbye_channel_id.say(&ctx.http, goodbye_message).await {
+            println!("Error sending goodbye message: {:?}", why);
+        }
+    }
 }
