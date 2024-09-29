@@ -2,6 +2,7 @@ use dotenv::dotenv;
 use serenity::prelude::*;
 use std::env;
 use std::sync::Arc;
+use serenity::model::gateway::Activity;
 
 mod bot;
 mod commands;

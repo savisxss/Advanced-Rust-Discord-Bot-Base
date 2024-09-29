@@ -2,6 +2,7 @@ use serenity::async_trait;
 use serenity::model::application::interaction::Interaction;
 use serenity::model::gateway::Ready;
 use serenity::prelude::*;
+use serenity::model::guild::Member;
 
 use crate::bot::Bot;
 use crate::config::Config;
