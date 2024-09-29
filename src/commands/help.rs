@@ -1,6 +1,10 @@
 use serenity::builder::CreateApplicationCommand;
-use serenity::model::application::interaction::ApplicationCommandInteraction;
+use serenity::model::application::interaction::application_command::ApplicationCommandInteraction;
+use serenity::prelude::*;
 use crate::commands::{Command, CommandHandler};
+use crate::config::Config;
+use crate::bot::error::BotResult;
+use crate::lang::Lang;
 
 pub struct Help;
 
@@ -9,20 +13,25 @@ impl Command for Help {
         "help".to_string()
     }
 
-    fn register(&self, command: &mut CreateApplicationCommand) -> &mut CreateApplicationCommand {
-        command
-            .name("help")
-            .description("Shows a list of available commands")
+    fn description(&self) -> String {
+        "Shows a list of available commands".to_string()
     }
 
-    fn run(&self, _command: &ApplicationCommandInteraction) -> String {
+    fn register(&self, command: &mut CreateApplicationCommand) -> &mut CreateApplicationCommand {
+        command
+            .name(self.name())
+            .description(self.description())
+    }
+
+    fn run(&self, _ctx: &Context, _command: &ApplicationCommandInteraction, lang: &Lang) -> BotResult<String> {
         let handler = CommandHandler::new();
-        let mut help_text = String::from("Available commands:\n");
+        let mut help_text = lang.get("commands.help_title").to_string() + "\n\n";
+        help_text += &lang.get("commands.help_description") + "\n\n";
 
         for cmd in handler.get_commands() {
-            help_text.push_str(&format!("/{} - {}\n", cmd.name(), cmd.register(&mut CreateApplicationCommand::default()).description.clone().unwrap_or_default()));
+            help_text += &format!("/{} - {}\n", cmd.name(), cmd.description());
         }
 
-        help_text
+        Ok(help_text)
     }
 }
