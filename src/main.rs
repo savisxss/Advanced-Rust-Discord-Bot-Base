@@ -19,6 +19,7 @@ use utils::cache::Cache;
 use utils::task_manager::TaskManager;
 use utils::rate_limiter::RateLimiter;
 use utils::guild_data::GuildData;
+use lang::Lang;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -27,11 +28,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let config = Config::load()?;
     let database = Database::new(&config.database.url).await?;
+    database.run_migrations().await?;
+    
     let metrics = Arc::new(Metrics::new());
     let cache = Arc::new(Cache::new(std::time::Duration::from_secs(300)));
     let task_manager = Arc::new(TaskManager::new());
     let rate_limiter = Arc::new(RateLimiter::new());
     let guild_data = Arc::new(GuildData::new());
+    let lang = Lang::load("en")?;
 
     let token = env::var("DISCORD_TOKEN").expect("Expected a token in the environment");
     let intents = GatewayIntents::GUILD_MESSAGES
@@ -48,6 +52,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             task_manager.clone(),
             rate_limiter.clone(),
             guild_data.clone(),
+            lang,
         ))
         .await
         .expect("Err creating client");
