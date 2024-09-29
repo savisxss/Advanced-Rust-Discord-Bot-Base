@@ -1,34 +1,58 @@
 use serde::Deserialize;
-use std::fs;
-use toml;
+use crate::utils::error::{BotResult, BotError};
 
-#[derive(Clone, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct Config {
-    pub guild_id: u64,
-    pub database_url: String,
-    pub log_channel: u64,
-    pub roles: Roles,
-    pub channels: Channels,
+    pub bot: BotConfig,
+    pub database: DatabaseConfig,
+    pub discord: DiscordConfig,
 }
 
-#[derive(Clone, Deserialize)]
-pub struct Roles {
-    pub admin: u64,
-    pub moderator: u64,
-    pub member: u64,
+#[derive(Debug, Deserialize)]
+pub struct BotConfig {
+    pub name: String,
+    pub prefix: String,
+    pub owners: Vec<u64>,
 }
 
-#[derive(Clone, Deserialize)]
-pub struct Channels {
-    pub welcome: u64,
-    pub general: u64,
-    pub logs: u64,
+#[derive(Debug, Deserialize)]
+pub struct DatabaseConfig {
+    pub url: String,
+    pub max_connections: u32,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct DiscordConfig {
+    pub token: String,
+    pub application_id: u64,
 }
 
 impl Config {
-    pub fn load() -> Result<Self, Box<dyn std::error::Error>> {
-        let config_str = fs::read_to_string("config.toml")?;
-        let config: Config = toml::from_str(&config_str)?;
+    pub fn load() -> BotResult<Self> {
+        let config_str = std::fs::read_to_string("config.toml")
+            .map_err(|e| BotError::Config(format!("Failed to read config file: {}", e)))?;
+
+        let config: Config = toml::from_str(&config_str)
+            .map_err(|e| BotError::Config(format!("Failed to parse config file: {}", e)))?;
+
+        config.validate()?;
+
         Ok(config)
+    }
+
+    fn validate(&self) -> BotResult<()> {
+        if self.bot.name.is_empty() {
+            return Err(BotError::Config("Bot name cannot be empty".to_string()));
+        }
+        if self.bot.prefix.is_empty() {
+            return Err(BotError::Config("Bot prefix cannot be empty".to_string()));
+        }
+        if self.discord.token.is_empty() {
+            return Err(BotError::Config("Discord token cannot be empty".to_string()));
+        }
+        if self.discord.application_id == 0 {
+            return Err(BotError::Config("Invalid Discord application ID".to_string()));
+        }
+        Ok(())
     }
 }
