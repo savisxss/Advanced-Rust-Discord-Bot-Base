@@ -1,17 +1,15 @@
 use sqlx::FromRow;
 use chrono::{DateTime, Utc};
 
-#[derive(FromRow)]
+#[derive(FromRow, Debug)]
 pub struct User {
     pub id: i64,
     pub discord_id: i64,
     pub username: String,
     pub joined_at: DateTime<Utc>,
-    pub experience: i32,
-    pub level: i32,
 }
 
-#[derive(FromRow)]
+#[derive(FromRow, Debug)]
 pub struct Warning {
     pub id: i64,
     pub user_id: i64,
@@ -24,14 +22,12 @@ impl User {
     pub async fn create(pool: &sqlx::PgPool, discord_id: i64, username: &str) -> Result<Self, sqlx::Error> {
         let user = sqlx::query_as!(
             User,
-            "INSERT INTO users (discord_id, username, joined_at, experience, level) 
-             VALUES ($1, $2, $3, $4, $5) 
-             RETURNING id, discord_id, username, joined_at, experience, level",
+            "INSERT INTO users (discord_id, username, joined_at) 
+             VALUES ($1, $2, $3) 
+             RETURNING id, discord_id, username, joined_at",
             discord_id,
             username,
-            Utc::now(),
-            0,
-            1
+            Utc::now()
         )
         .fetch_one(pool)
         .await?;
