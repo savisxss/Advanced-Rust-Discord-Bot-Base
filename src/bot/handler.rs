@@ -15,6 +15,7 @@ use crate::utils::cache::Cache;
 use crate::utils::task_manager::TaskManager;
 use crate::utils::rate_limiter::RateLimiter;
 use crate::utils::guild_data::GuildData;
+use crate::lang::Lang;
 
 pub struct Handler {
     bot: Bot,
@@ -29,9 +30,10 @@ impl Handler {
         task_manager: Arc<TaskManager>,
         rate_limiter: Arc<RateLimiter>,
         guild_data: Arc<GuildData>,
+        lang: Lang,
     ) -> Self {
         Self {
-            bot: Bot::new(config, database, metrics, cache, task_manager, rate_limiter, guild_data),
+            bot: Bot::new(config, database, metrics, cache, task_manager, rate_limiter, guild_data, lang),
         }
     }
 }
@@ -39,49 +41,25 @@ impl Handler {
 #[async_trait]
 impl EventHandler for Handler {
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
-        if let Interaction::ApplicationCommand(command) = interaction {
-            if !self.bot.rate_limiter.check("command", command.user.id.0).await {
-                let _ = command.create_interaction_response(&ctx.http, |response| {
-                    response.interaction_response_data(|message| 
-                        message.content("You're using commands too quickly. Please slow down.")
-                    )
-                }).await;
-                return;
-            }
-
-            self.bot.metrics.increment_command(&command.data.name).await;
-
-            let cache_key = format!("last_command:{}", command.user.id);
-            self.bot.cache.set(cache_key.clone(), command.data.name.clone()).await;
-
-            if let Err(why) = self.bot.handle_command(&ctx, &command).await {
-                log::error!("Error handling command: {:?}", why);
-            }
+        if let Err(why) = self.bot.handle_interaction(ctx, interaction).await {
+            log::error!("Error handling interaction: {:?}", why);
         }
     }
 
     async fn ready(&self, ctx: Context, ready: Ready) {
-        log::info!("{} is connected!", ready.user.name);
-        
-        if let Err(why) = self.bot.register_commands(&ctx).await {
-            log::error!("Error registering slash commands: {:?}", why);
+        if let Err(why) = self.bot.handle_ready(ctx, ready).await {
+            log::error!("Error handling ready event: {:?}", why);
         }
-
-        let ctx_clone = ctx.clone();
-        self.bot.task_manager.spawn("status_update", async move {
-            loop {
-                tokio::time::sleep(std::time::Duration::from_secs(60)).await;
-                ctx_clone.set_activity(Activity::playing("with slash commands")).await;
-            }
-        }).await.expect("Failed to spawn status update task");
     }
 
     async fn guild_member_addition(&self, ctx: Context, new_member: Member) {
         let guild_id = new_member.guild_id;
         let welcome_message = self.bot.guild_data.get(guild_id, "welcome_message")
             .await
-            .unwrap_or(Ok("Welcome to the server!".to_string()))
-            .unwrap_or("Welcome to the server!".to_string());
+            .unwrap_or(Ok(self.bot.get_message("events.member_join")))
+            .unwrap_or_else(|_| self.bot.get_message("events.member_join"));
+
+        let welcome_message = welcome_message.replace("{user}", &new_member.user.name);
 
         if let Err(why) = new_member.user.dm(&ctx.http, |m| m.content(welcome_message)).await {
             log::error!("Error sending welcome message: {:?}", why);
@@ -93,8 +71,10 @@ impl EventHandler for Handler {
     async fn guild_member_removal(&self, ctx: Context, guild_id: GuildId, user: User, _member_data: Option<Member>) {
         let goodbye_message = self.bot.guild_data.get(guild_id, "goodbye_message")
             .await
-            .unwrap_or(Ok("Goodbye! We hope to see you again.".to_string()))
-            .unwrap_or("Goodbye! We hope to see you again.".to_string());
+            .unwrap_or(Ok(self.bot.get_message("events.member_leave")))
+            .unwrap_or_else(|_| self.bot.get_message("events.member_leave"));
+
+        let goodbye_message = goodbye_message.replace("{user}", &user.name);
 
         if let Err(why) = user.dm(&ctx.http, |m| m.content(goodbye_message)).await {
             log::error!("Error sending goodbye message: {:?}", why);
