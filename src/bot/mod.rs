@@ -1,6 +1,3 @@
-pub mod error;
-pub mod handler;
-
 use serenity::model::application::interaction::Interaction;
 use serenity::model::gateway::Ready;
 use serenity::prelude::*;
@@ -14,6 +11,8 @@ use crate::utils::cache::Cache;
 use crate::utils::task_manager::TaskManager;
 use crate::utils::rate_limiter::RateLimiter;
 use crate::utils::guild_data::GuildData;
+use crate::lang::Lang;
+use crate::error::{BotError, BotResult};
 
 pub struct Bot {
     config: Config,
@@ -23,6 +22,7 @@ pub struct Bot {
     task_manager: Arc<TaskManager>,
     rate_limiter: Arc<RateLimiter>,
     guild_data: Arc<GuildData>,
+    lang: Lang,
 }
 
 impl Bot {
@@ -34,6 +34,7 @@ impl Bot {
         task_manager: Arc<TaskManager>,
         rate_limiter: Arc<RateLimiter>,
         guild_data: Arc<GuildData>,
+        lang: Lang,
     ) -> Self {
         Self {
             config,
@@ -43,10 +44,15 @@ impl Bot {
             task_manager,
             rate_limiter,
             guild_data,
+            lang,
         }
     }
 
-    pub async fn handle_interaction(&self, ctx: Context, interaction: Interaction) -> Result<(), error::BotError> {
+    pub fn get_message(&self, key: &str) -> String {
+        self.lang.get(key).to_string()
+    }
+
+    pub async fn handle_interaction(&self, ctx: Context, interaction: Interaction) -> BotResult<()> {
         match interaction {
             Interaction::ApplicationCommand(command) => {
                 if !self.rate_limiter.check("command", command.user.id.0).await {
@@ -55,11 +61,11 @@ impl Bot {
                             response
                                 .kind(InteractionResponseType::ChannelMessageWithSource)
                                 .interaction_response_data(|message| 
-                                    message.content("You're using commands too quickly. Please slow down.")
+                                    message.content(self.get_message("errors.rate_limit"))
                                 )
                         })
                         .await
-                        .map_err(|e| error::BotError::Serenity(e))?;
+                        .map_err(|e| BotError::Serenity(e))?;
                     return Ok(());
                 }
 
@@ -69,9 +75,9 @@ impl Bot {
                 self.cache.set(cache_key.clone(), command.data.name.clone()).await;
 
                 let content = match command.data.name.as_str() {
-                    "ping" => commands::ping::run(&command.data.options),
-                    "help" => commands::help::run(&self.config, &command.data.options),
-                    _ => Err(error::BotError::UnknownCommand(command.data.name.clone())),
+                    "ping" => commands::ping::run(&self.lang),
+                    "help" => commands::help::run(&self.config, &self.lang),
+                    _ => Err(BotError::UnknownCommand(command.data.name.clone())),
                 }?;
 
                 command
@@ -81,14 +87,14 @@ impl Bot {
                             .interaction_response_data(|message| message.content(content))
                     })
                     .await
-                    .map_err(|e| error::BotError::Serenity(e))?;
+                    .map_err(|e| BotError::Serenity(e))?;
             }
             _ => {}
         }
         Ok(())
     }
 
-    pub async fn handle_ready(&self, ctx: Context, ready: Ready) -> Result<(), error::BotError> {
+    pub async fn handle_ready(&self, ctx: Context, ready: Ready) -> BotResult<()> {
         log::info!("{} is connected!", ready.user.name);
 
         let guild_id = GuildId(self.config.guild_id);
@@ -99,7 +105,7 @@ impl Bot {
                 .create_application_command(|command| commands::help::register(command))
         })
         .await
-        .map_err(|e| error::BotError::Serenity(e))?;
+        .map_err(|e| BotError::Serenity(e))?;
 
         log::info!("Registered slash commands: {:#?}", commands);
 
