@@ -2,6 +2,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
+use std::hash::Hash;
 
 pub struct CacheEntry<T> {
     data: T,
@@ -15,7 +16,7 @@ pub struct Cache<K, V> {
 
 impl<K, V> Cache<K, V>
 where
-    K: Eq + std::hash::Hash + Clone,
+    K: Eq + Hash + Clone,
     V: Clone,
 {
     pub fn new(ttl: Duration) -> Self {
@@ -51,5 +52,23 @@ where
     pub async fn clear(&self) {
         let mut data = self.data.write().await;
         data.clear();
+    }
+
+    pub async fn cleanup(&self) {
+        let mut data = self.data.write().await;
+        data.retain(|_, v| v.expires_at > Instant::now());
+    }
+
+    pub async fn get_or_insert_with<F>(&self, key: K, f: F) -> V
+    where
+        F: FnOnce() -> V,
+    {
+        if let Some(value) = self.get(&key).await {
+            return value;
+        }
+
+        let value = f();
+        self.set(key, value.clone()).await;
+        value
     }
 }
