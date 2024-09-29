@@ -21,6 +21,11 @@ impl Database {
         sqlx::query(query).execute(&*self.pool).await?;
         Ok(())
     }
+
+    pub async fn run_migrations(&self) -> Result<(), sqlx::Error> {
+        sqlx::migrate!("./migrations").run(&*self.pool).await?;
+        Ok(())
+    }
 }
 
 impl Clone for Database {
