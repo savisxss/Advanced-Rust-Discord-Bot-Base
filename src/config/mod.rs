@@ -1,35 +1,47 @@
 use serde::Deserialize;
-use crate::utils::error::{BotResult, BotError};
+use crate::bot::error::{BotResult, BotError};
+use std::fs;
+use std::path::Path;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct Config {
     pub bot: BotConfig,
     pub database: DatabaseConfig,
     pub discord: DiscordConfig,
+    pub features: FeatureConfig,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct BotConfig {
     pub name: String,
     pub prefix: String,
     pub owners: Vec<u64>,
+    pub default_language: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct DatabaseConfig {
     pub url: String,
     pub max_connections: u32,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct DiscordConfig {
     pub token: String,
     pub application_id: u64,
 }
 
+#[derive(Debug, Deserialize, Clone)]
+pub struct FeatureConfig {
+    pub enable_music: bool,
+    pub enable_moderation: bool,
+    pub enable_custom_commands: bool,
+}
+
 impl Config {
     pub fn load() -> BotResult<Self> {
-        let config_str = std::fs::read_to_string("config.toml")
+        let config_path = std::env::var("CONFIG_PATH").unwrap_or_else(|_| "config.toml".to_string());
+        let config_str = fs::read_to_string(&config_path)
             .map_err(|e| BotError::Config(format!("Failed to read config file: {}", e)))?;
 
         let config: Config = toml::from_str(&config_str)
@@ -55,4 +67,18 @@ impl Config {
         }
         Ok(())
     }
+
+    pub fn get_owner_ids(&self) -> &[u64] {
+        &self.bot.owners
+    }
+
+    pub fn is_owner(&self, user_id: u64) -> bool {
+        self.bot.owners.contains(&user_id)
+    }
+}
+
+pub fn load_env() -> BotResult<()> {
+    dotenv::from_path(Path::new(".env"))
+        .map_err(|e| BotError::Config(format!("Failed to load .env file: {}", e)))?;
+    Ok(())
 }
