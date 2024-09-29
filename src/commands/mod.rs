@@ -31,4 +31,16 @@ impl CommandHandler {
     pub fn find_command(&self, name: &str) -> Option<&Box<dyn Command>> {
         self.commands.iter().find(|cmd| cmd.name() == name)
     }
+
+    pub fn register_commands(&self, ctx: &Context, guild_id: GuildId) -> Result<(), SerenityError> {
+        let commands = guild_id.set_application_commands(&ctx.http, |commands| {
+            for command in &self.commands {
+                commands.create_application_command(|cmd| command.register(cmd));
+            }
+            commands
+        })?;
+
+        println!("Registered the following commands: {:?}", commands);
+        Ok(())
+    }
 }
