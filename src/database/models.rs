@@ -9,15 +9,6 @@ pub struct User {
     pub joined_at: DateTime<Utc>,
 }
 
-#[derive(FromRow, Debug)]
-pub struct Warning {
-    pub id: i64,
-    pub user_id: i64,
-    pub moderator_id: i64,
-    pub reason: String,
-    pub created_at: DateTime<Utc>,
-}
-
 impl User {
     pub async fn create(pool: &sqlx::PgPool, discord_id: i64, username: &str) -> Result<Self, sqlx::Error> {
         let user = sqlx::query_as!(
@@ -45,24 +36,5 @@ impl User {
         .await?;
 
         Ok(user)
-    }
-}
-
-impl Warning {
-    pub async fn create(pool: &sqlx::PgPool, user_id: i64, moderator_id: i64, reason: &str) -> Result<Self, sqlx::Error> {
-        let warning = sqlx::query_as!(
-            Warning,
-            "INSERT INTO warnings (user_id, moderator_id, reason, created_at) 
-             VALUES ($1, $2, $3, $4) 
-             RETURNING id, user_id, moderator_id, reason, created_at",
-            user_id,
-            moderator_id,
-            reason,
-            Utc::now()
-        )
-        .fetch_one(pool)
-        .await?;
-
-        Ok(warning)
     }
 }

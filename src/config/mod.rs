@@ -8,7 +8,6 @@ pub struct Config {
     pub bot: BotConfig,
     pub database: DatabaseConfig,
     pub discord: DiscordConfig,
-    pub features: FeatureConfig,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -28,13 +27,6 @@ pub struct DatabaseConfig {
 pub struct DiscordConfig {
     pub token: String,
     pub application_id: u64,
-}
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct FeatureConfig {
-    pub enable_music: bool,
-    pub enable_moderation: bool,
-    pub enable_custom_commands: bool,
 }
 
 impl Config {
