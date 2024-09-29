@@ -1,5 +1,4 @@
 [bot]
-prefix = "!"
 status = "Listening to /help"
 
 [guild]
@@ -17,11 +16,6 @@ logs = 345678901234567890
 admin = 456789012345678901
 moderator = 567890123456789012
 member = 678901234567890123
-
-[features]
-welcome_message = true
-auto_role = true
-logging = true
 
 [messages]
 welcome = "Welcome to the server, {user}! Enjoy your stay."
