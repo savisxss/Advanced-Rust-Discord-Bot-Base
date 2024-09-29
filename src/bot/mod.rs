@@ -31,11 +31,12 @@ impl Bot {
         database: Database,
         metrics: Arc<Metrics>,
         cache: Arc<Cache<String, String>>,
-        task_manager: Arc<TaskManager>,
         rate_limiter: Arc<RateLimiter>,
         guild_data: Arc<GuildData>,
         lang: Lang,
     ) -> Self {
+        let task_manager = Arc::new(TaskManager::new(5));
+
         Self {
             config,
             database,
@@ -118,7 +119,9 @@ impl Bot {
 
     fn start_periodic_tasks(&self, ctx: Context) {
         let metrics = self.metrics.clone();
-        self.task_manager.spawn("metrics_reporter", async move {
+        let task_manager = self.task_manager.clone();
+        
+        task_manager.spawn("metrics_reporter", async move {
             loop {
                 tokio::time::sleep(std::time::Duration::from_secs(300)).await;
                 let guild_count = ctx.cache.guild_count();
