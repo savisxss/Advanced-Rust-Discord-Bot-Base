@@ -8,6 +8,7 @@ pub struct Config {
     pub bot: BotConfig,
     pub database: DatabaseConfig,
     pub discord: DiscordConfig,
+    pub telemetry: TelemetryConfig,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -27,6 +28,13 @@ pub struct DatabaseConfig {
 pub struct DiscordConfig {
     pub token: String,
     pub application_id: u64,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct TelemetryConfig {
+    pub enabled: bool,
+    pub log_file: String,
+    pub batch_size: usize,
 }
 
 impl Config {

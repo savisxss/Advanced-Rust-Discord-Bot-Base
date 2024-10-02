@@ -8,3 +8,8 @@ max_connections = 5
 
 [discord]
 application_id = 123456789012345678
+
+[telemetry]
+enabled = true
+log_file = "telemetry.log"
+batch_size = 100

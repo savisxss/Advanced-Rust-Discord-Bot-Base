@@ -32,6 +32,7 @@ use telemetry::TelemetryManager;
 use backup::BackupManager;
 
 use crate::plugins::example_plugin::ExamplePlugin;
+use crate::telemetry::TelemetryManager;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -56,6 +57,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let security_manager = Arc::new(SecurityManager::new());
     let telemetry_manager = Arc::new(TelemetryManager::new(&config.telemetry)?);
     let backup_manager = Arc::new(BackupManager::new(&config.backup, Arc::clone(&database))?);
+
+    let telemetry_manager = Arc::new(TelemetryManager::new(&config.telemetry));
+    telemetry_manager.start_periodic_flush().await;
 
     plugin_manager.load_plugin(Box::new(ExamplePlugin)).await?;
 
