@@ -67,10 +67,47 @@ impl Bot {
     pub async fn handle_interaction(&self, ctx: Context, interaction: Interaction) -> BotResult<()> {
         match interaction {
             Interaction::ApplicationCommand(command) => {
-                if !self.security_manager.check_permissions(&command, &ctx).await? {
-                    return Err(BotError::MissingPermissions);
+                let user_id = command.user.id;
+    
+                if self.security_manager.is_user_blocked(user_id).await {
+                    command
+                        .create_interaction_response(&ctx.http, |response| {
+                            response
+                                .kind(InteractionResponseType::ChannelMessageWithSource)
+                                .interaction_response_data(|message| 
+                                    message.content(self.lang.get("errors.user_blocked"))
+                                )
+                        })
+                        .await?;
+                    return Ok(());
                 }
-
+    
+                if !self.security_manager.check_permissions(&command, &ctx).await? {
+                    command
+                        .create_interaction_response(&ctx.http, |response| {
+                            response
+                                .kind(InteractionResponseType::ChannelMessageWithSource)
+                                .interaction_response_data(|message| 
+                                    message.content(self.lang.get("errors.missing_permissions"))
+                                )
+                        })
+                        .await?;
+                    return Ok(());
+                }
+    
+                if !self.security_manager.check_rate_limit(&command.data.name, user_id).await {
+                    command
+                        .create_interaction_response(&ctx.http, |response| {
+                            response
+                                .kind(InteractionResponseType::ChannelMessageWithSource)
+                                .interaction_response_data(|message| 
+                                    message.content(self.lang.get("errors.rate_limit"))
+                                )
+                        })
+                        .await?;
+                    return Ok(());
+                }
+    
                 if !self.rate_limiter.check("command", command.user.id.0).await {
                     command
                         .create_interaction_response(&ctx.http, |response| {
@@ -83,27 +120,30 @@ impl Bot {
                         .await?;
                     return Ok(());
                 }
-
+    
                 self.metrics.increment_command(&command.data.name).await;
                 self.telemetry_manager.log_command(&command.data.name).await?;
-
+    
                 let content = match command.data.name.as_str() {
                     "ping" => commands::ping::run(&self.lang),
                     "help" => commands::help::run(&self.config, &self.lang),
                     _ => {
-                        if let Some(plugin_command) = self.plugin_manager.get_command(&command.data.name) {
+                        if let Some(plugin_command) = self.plugin_manager.get_command(&command.data.name).await {
                             plugin_command.run(self, &ctx, &command).await?
                         } else {
                             return Err(BotError::UnknownCommand(command.data.name.clone()));
                         }
                     }
                 }?;
-
+    
+                let sanitized_content = self.security_manager.sanitize_input(&content);
+                let escaped_content = self.security_manager.escape_markdown(&sanitized_content);
+    
                 command
                     .create_interaction_response(&ctx.http, |response| {
                         response
                             .kind(InteractionResponseType::ChannelMessageWithSource)
-                            .interaction_response_data(|message| message.content(content))
+                            .interaction_response_data(|message| message.content(escaped_content))
                     })
                     .await?;
             }
