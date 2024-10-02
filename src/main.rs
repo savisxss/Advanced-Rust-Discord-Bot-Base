@@ -10,6 +10,10 @@ mod config;
 mod database;
 mod lang;
 mod utils;
+mod plugins;
+mod security;
+mod telemetry;
+mod backup;
 
 use bot::handler::Handler;
 use config::Config;
@@ -22,6 +26,10 @@ use utils::rate_limiter::RateLimiter;
 use utils::guild_data::GuildData;
 use lang::Lang;
 use utils::event_bus::EventBus;
+use plugins::PluginManager;
+use security::SecurityManager;
+use telemetry::TelemetryManager;
+use backup::BackupManager;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -34,13 +42,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     let metrics = Arc::new(Metrics::new());
     let cache = Arc::new(Cache::new(std::time::Duration::from_secs(300)));
-    let task_manager = Arc::new(TaskManager::new());
+    let task_manager = Arc::new(TaskManager::new(5));
     let rate_limiter = Arc::new(RateLimiter::new());
     let guild_data = Arc::new(GuildData::new());
-    let lang = Arc::new(Lang::load("en")?);
+    let lang = Arc::new(Lang::load(&config.bot.default_language)?);
 
     let (event_sender, _) = broadcast::channel(100);
     let event_bus = Arc::new(EventBus::new(event_sender));
+
+    let plugin_manager = Arc::new(PluginManager::new());
+    let security_manager = Arc::new(SecurityManager::new());
+    let telemetry_manager = Arc::new(TelemetryManager::new(&config.telemetry)?);
+    let backup_manager = Arc::new(BackupManager::new(&config.backup, Arc::clone(&database))?);
 
     let token = env::var("DISCORD_TOKEN").expect("Expected a token in the environment");
     let intents = GatewayIntents::GUILD_MESSAGES
@@ -59,6 +72,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             Arc::clone(&guild_data),
             Arc::clone(&lang),
             Arc::clone(&event_bus),
+            Arc::clone(&plugin_manager),
+            Arc::clone(&security_manager),
+            Arc::clone(&telemetry_manager),
+            Arc::clone(&backup_manager),
         ))
         .await
         .expect("Err creating client");
@@ -83,9 +100,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }).await?;
 
+    task_manager.spawn("backup_scheduler", {
+        let backup_manager = Arc::clone(&backup_manager);
+        async move {
+            backup_manager.run_scheduled_backups().await;
+        }
+    }).await?;
+
     log::info!("Starting bot...");
+    telemetry_manager.log_event("bot_start").await?;
+
     if let Err(why) = client.start().await {
         log::error!("Client error: {:?}", why);
+        telemetry_manager.log_error("client_error", &why.to_string()).await?;
     }
 
     Ok(())
