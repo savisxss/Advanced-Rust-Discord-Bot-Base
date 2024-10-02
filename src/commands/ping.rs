@@ -2,11 +2,12 @@ use serenity::builder::CreateApplicationCommand;
 use serenity::model::application::interaction::application_command::ApplicationCommandInteraction;
 use serenity::prelude::*;
 use crate::commands::Command;
+use crate::bot::Bot;
 use crate::bot::error::BotResult;
-use crate::lang::Lang;
 
 pub struct Ping;
 
+#[async_trait]
 impl Command for Ping {
     fn name(&self) -> String {
         "ping".to_string()
@@ -22,8 +23,10 @@ impl Command for Ping {
             .description(self.description())
     }
 
-    fn run(&self, ctx: &Context, _command: &ApplicationCommandInteraction, lang: &Lang) -> BotResult<String> {
+    async fn run(&self, bot: &Bot, ctx: &Context, _command: &ApplicationCommandInteraction) -> BotResult<String> {
         let latency = ctx.cache.current_user().unwrap().id.created_at().timestamp_millis() as u64;
-        Ok(lang.get("commands.ping_response").replace("{latency}", &latency.to_string()))
+        let response = bot.lang.get("commands.ping_response").replace("{latency}", &latency.to_string());
+        bot.telemetry_manager.log_event("ping_command_used").await?;
+        Ok(response)
     }
 }
