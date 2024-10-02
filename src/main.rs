@@ -31,6 +31,8 @@ use security::SecurityManager;
 use telemetry::TelemetryManager;
 use backup::BackupManager;
 
+use crate::plugins::example_plugin::ExamplePlugin;
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv().ok();
@@ -54,6 +56,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let security_manager = Arc::new(SecurityManager::new());
     let telemetry_manager = Arc::new(TelemetryManager::new(&config.telemetry)?);
     let backup_manager = Arc::new(BackupManager::new(&config.backup, Arc::clone(&database))?);
+
+    plugin_manager.load_plugin(Box::new(ExamplePlugin)).await?;
 
     let token = env::var("DISCORD_TOKEN").expect("Expected a token in the environment");
     let intents = GatewayIntents::GUILD_MESSAGES
